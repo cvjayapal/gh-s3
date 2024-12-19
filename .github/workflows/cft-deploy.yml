@@ -59,18 +59,23 @@ jobs:
 
         aws ecs register-task-definition --cli-input-json file://task-def.json
 
-    - name: Create ECS Service
+    - name: Ensure ECS Service Exists
       run: |
-        aws ecs create-service \
-          --cluster my-ecs-cluster \
-          --service-name my-ecs-service \
-          --task-definition ecs-task-family \
-          --desired-count 1 \
-          --launch-type FARGATE \
-          --network-configuration 'awsvpcConfiguration={subnets=["subnet-xxxxxxxx"],securityGroups=["sg-xxxxxxxx"],assignPublicIp="ENABLED"}' \
-        || echo "Service already exists"
+        SERVICE_EXISTS=$(aws ecs describe-services --cluster my-ecs-cluster --services my-ecs-service --query "services[?status=='ACTIVE'].serviceName" --output text)
+        if [ -z "$SERVICE_EXISTS" ]; then
+          echo "Creating ECS Service..."
+          aws ecs create-service \
+            --cluster my-ecs-cluster \
+            --service-name my-ecs-service \
+            --task-definition ecs-task-family \
+            --desired-count 1 \
+            --launch-type FARGATE \
+            --network-configuration 'awsvpcConfiguration={subnets=["subnet-xxxxxxxx"],securityGroups=["sg-xxxxxxxx"],assignPublicIp="ENABLED"}'
+        else
+          echo "ECS Service already exists."
+        fi
 
-    - name: Update ECS Service (If Exists)
+    - name: Update ECS Service
       run: |
         aws ecs update-service \
           --cluster my-ecs-cluster \
