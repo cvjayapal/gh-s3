@@ -20,11 +20,11 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Install AWS CLI
+    - name: Install/Update AWS CLI
       run: |
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
         unzip awscliv2.zip
-        sudo ./aws/install
+        sudo ./aws/install --update
         aws --version
 
     - name: Create ECS Cluster
@@ -57,3 +57,22 @@ jobs:
           "memory": "512"
         }' > task-def.json
 
+        aws ecs register-task-definition --cli-input-json file://task-def.json
+
+    - name: Create ECS Service
+      run: |
+        aws ecs create-service \
+          --cluster my-ecs-cluster \
+          --service-name my-ecs-service \
+          --task-definition ecs-task-family \
+          --desired-count 1 \
+          --launch-type FARGATE \
+          --network-configuration 'awsvpcConfiguration={subnets=["subnet-xxxxxxxx"],securityGroups=["sg-xxxxxxxx"],assignPublicIp="ENABLED"}' \
+        || echo "Service already exists"
+
+    - name: Update ECS Service (If Exists)
+      run: |
+        aws ecs update-service \
+          --cluster my-ecs-cluster \
+          --service my-ecs-service \
+          --task-definition ecs-task-family
