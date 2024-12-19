@@ -44,6 +44,6 @@ jobs:
         cdk deploy --require-approval never  # Automatically approve the deployment
 
     # Step 7: Clean up (optional, you can add this if you want to remove resources)
-    - name: Clean up resources (optional)
-      run: |
-        cdk destroy --force
+    #- name: Clean up resources (optional)
+    #  run: |
+    #   cdk destroy --force
