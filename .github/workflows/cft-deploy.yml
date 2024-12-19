@@ -1,83 +1,49 @@
-name: Deploy to ECS with Cluster and Service Creation
+name: Deploy to ECS Fargate using AWS CDK
 
 on:
   push:
     branches:
-      - main
+      - main   # Trigger the workflow on push to the main branch (you can customize this)
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+    # Step 1: Checkout the code
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v3
+    # Step 2: Set up Node.js (for AWS CDK)
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+        node-version: '14'   # Use the version that fits your project (e.g., 14, 16)
 
-    - name: Install/Update AWS CLI
+    # Step 3: Install dependencies
+    - name: Install dependencies
       run: |
-        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-        unzip awscliv2.zip
-        sudo ./aws/install --update
-        aws --version
+        npm install -g aws-cdk  # Install AWS CDK globally
+        npm install              # Install local dependencies
 
-    - name: Create ECS Cluster
+    # Step 4: Configure AWS CLI with GitHub Secrets
+    - name: Configure AWS CLI
       run: |
-        aws ecs create-cluster --cluster-name my-ecs-cluster || echo "Cluster already exists"
+        aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws configure set region ${{ secrets.AWS_REGION }}
 
-    - name: Register Task Definition
-      id: task-def
+    # Step 5: Bootstrapping CDK (only required once per environment)
+    - name: Bootstrap CDK
       run: |
-        echo '{
-          "family": "ecs-task-family",
-          "networkMode": "awsvpc",
-          "containerDefinitions": [
-            {
-              "name": "ecs-container",
-              "image": "cvjaipal/aws:latest",
-              "essential": true,
-              "memory": 512,
-              "cpu": 256,
-              "portMappings": [
-                {
-                  "containerPort": 80,
-                  "protocol": "tcp"
-                }
-              ]
-            }
-          ],
-          "requiresCompatibilities": ["FARGATE"],
-          "cpu": "256",
-          "memory": "512"
-        }' > task-def.json
+        cdk bootstrap
 
-        aws ecs register-task-definition --cli-input-json file://task-def.json
-
-    - name: Ensure ECS Service Exists
+    # Step 6: Deploy the stack using AWS CDK
+    - name: Deploy to ECS Fargate using CDK
       run: |
-        SERVICE_EXISTS=$(aws ecs describe-services --cluster my-ecs-cluster --services my-ecs-service --query "services[?status=='ACTIVE'].serviceName" --output text)
-        if [ -z "$SERVICE_EXISTS" ]; then
-          echo "Creating ECS Service..."
-          aws ecs create-service \
-            --cluster my-ecs-cluster \
-            --service-name my-ecs-service \
-            --task-definition ecs-task-family \
-            --desired-count 1 \
-            --launch-type FARGATE \
-            --network-configuration 'awsvpcConfiguration={subnets=["subnet-02237527f91850491"],securityGroups=["sg-0f869206936da15a6"],assignPublicIp="ENABLED"}'
-        else
-          echo "ECS Service already exists."
-        fi
+        cdk deploy --require-approval never  # Automatically approve the deployment
 
-    - name: Update ECS Service
-      run: |
-        aws ecs update-service \
-          --cluster my-ecs-cluster \
-          --service my-ecs-service \
-          --task-definition ecs-task-family
+    # Step 7: Clean up (optional, you can add this if you want to remove resources)
+    #- name: Clean up resources (optional)
+    #  run: |
+    #   cdk destroy --force
