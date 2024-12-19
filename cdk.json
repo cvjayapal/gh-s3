@@ -1,0 +1,6 @@
+{
+  "app": "npx ts-node bin/ecs-fargate-deployment.ts",
+  "context": {
+    "aws:cdk:enableDiffNoFail": "false"
+  }
+}
