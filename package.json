@@ -1,0 +1,20 @@
+{
+  "name": "ecs-fargate-deployment",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "start": "ts-node bin/ecs-fargate-deployment.ts"
+  },
+  "devDependencies": {
+    "typescript": "^4.9.5",
+    "ts-node": "^10.9.1"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.0.0",
+    "constructs": "^10.0.5",
+    "aws-ecs": "^2.0.0",
+    "aws-ec2": "^2.0.0",
+    "aws-logs": "^2.0.0"
+  }
+}
