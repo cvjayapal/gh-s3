@@ -33,7 +33,7 @@ export class EcsFargateCdkStack extends cdk.Stack {
     });
 
     // Create an ECS Fargate Service
-    new ecs.FargateService(this, 'MyEcsService1', {
+    new ecs.FargateService(this, 'MyEcsService', {
       cluster,
       taskDefinition,
       desiredCount: 1, // Number of tasks to run
@@ -41,3 +41,9 @@ export class EcsFargateCdkStack extends cdk.Stack {
     });
   }
 }
+
+// In your app definition file (bin/ecs-fargate-deployment.ts), specify the environment
+const app = new cdk.App();
+new EcsFargateCdkStack(app, 'EcsFargateCdkStack', {
+  env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
+});

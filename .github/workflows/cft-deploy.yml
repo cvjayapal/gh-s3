@@ -1,49 +1,39 @@
+# GitHub Actions Workflow for ECS Fargate Deployment
 name: Deploy to ECS Fargate using AWS CDK
 
 on:
   push:
     branches:
-      - main   # Trigger the workflow on push to the main branch (you can customize this)
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout the code
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    # Step 2: Set up Node.js (for AWS CDK)
-    - name: Set up Node.js
-      uses: actions/setup-node@v2
-      with:
-        node-version: '14'   # Use the version that fits your project (e.g., 14, 16)
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
 
-    # Step 3: Install dependencies
-    - name: Install dependencies
-      run: |
-        npm install -g aws-cdk  # Install AWS CDK globally
-        npm install              # Install local dependencies
+      - name: Install dependencies
+        run: |
+          npm install -g aws-cdk
+          npm install
 
-    # Step 4: Configure AWS CLI with GitHub Secrets
-    - name: Configure AWS CLI
-      run: |
-        aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws configure set region ${{ secrets.AWS_REGION }}
+      - name: Configure AWS CLI
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set region ${{ secrets.AWS_REGION }}
 
-    # Step 5: Bootstrapping CDK (only required once per environment)
-    - name: Bootstrap CDK
-      run: |
-        cdk bootstrap
+      - name: Bootstrap CDK
+        run: |
+          cdk bootstrap
 
-    # Step 6: Deploy the stack using AWS CDK
-    - name: Deploy to ECS Fargate using CDK
-      run: |
-        cdk deploy --require-approval never  # Automatically approve the deployment
-
-    # Step 7: Clean up (optional, you can add this if you want to remove resources)
-    #- name: Clean up resources (optional)
-    #  run: |
-    #   cdk destroy --force
+      - name: Deploy to ECS Fargate using CDK
+        run: |
+          cdk deploy --require-approval never
