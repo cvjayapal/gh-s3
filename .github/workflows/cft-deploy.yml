@@ -1,5 +1,4 @@
-#test
-name: Create S3 Bucket
+name: Deploy to ECS with Cluster and Service Creation
 
 on:
   push:
@@ -7,23 +6,71 @@ on:
       - main
 
 jobs:
-  create-s3-bucket:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout Code
       uses: actions/checkout@v3
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v3
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}  # Defaults to us-east-1 if not specified in GitHub Secrets
+        aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Create S3 bucket
-      env:
-        BUCKET_NAME: my-unique-bucket-name-${{ github.run_id }}
+    - name: Install AWS CLI
       run: |
-        aws s3 mb s3://$BUCKET_NAME
-        echo "S3 bucket '$BUCKET_NAME' created successfully."
+        sudo apt-get update
+        sudo apt-get install -y awscli
+
+    - name: Create ECS Cluster
+      run: |
+        aws ecs create-cluster --cluster-name my-ecs-cluster || echo "Cluster already exists"
+
+    - name: Register Task Definition
+      id: task-def
+      run: |
+        echo '{
+          "family": "ecs-task-family",
+          "networkMode": "awsvpc",
+          "containerDefinitions": [
+            {
+              "name": "ecs-container",
+              "image": "cvjaipal/aws:latest",
+              "essential": true,
+              "memory": 512,
+              "cpu": 256,
+              "portMappings": [
+                {
+                  "containerPort": 80,
+                  "protocol": "tcp"
+                }
+              ]
+            }
+          ],
+          "requiresCompatibilities": ["FARGATE"],
+          "cpu": "256",
+          "memory": "512"
+        }' > task-def.json
+
+        aws ecs register-task-definition --cli-input-json file://task-def.json
+
+    - name: Create ECS Service
+      run: |
+        aws ecs create-service \
+          --cluster my-ecs-cluster \
+          --service-name my-ecs-service \
+          --task-definition ecs-task-family \
+          --desired-count 1 \
+          --launch-type FARGATE \
+          --network-configuration 'awsvpcConfiguration={subnets=["subnet-02237527f91850491"],securityGroups=["sg-0f869206936da15a6"],assignPublicIp="ENABLED"}' \
+        || echo "Service already exists"
+
+    - name: Update ECS Service (If Exists)
+      run: |
+        aws ecs update-service \
+          --cluster my-ecs-cluster \
+          --service my-ecs-service \
+          --task-definition ecs-task-family
